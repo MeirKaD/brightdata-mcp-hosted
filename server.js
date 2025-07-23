@@ -284,7 +284,7 @@ server.addTool({
             searchData.organic.forEach((result, index) => {
                 if (result.link && result.title) {
                     results.push({
-                        id: `url:${encodeURIComponent(result.link)}`,
+                        id: result.link,
                         title: result.title || 'Untitled',
                         text: result.description || '',
                         url: result.link || ''
