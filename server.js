@@ -298,7 +298,7 @@ server.addTool({
 
         console.error(`[search] Returning ${results.length} results`);
         
-        return JSON.stringify(results);
+        return results;
     })
 });
 server.addTool({
@@ -335,7 +335,7 @@ server.addTool({
             return 'Untitled Document';
         }
 
-        return JSON.stringify({
+        return {
             id: url,
             title: extractTitleFromMarkdown(response.data),
             text: response.data,
@@ -344,7 +344,7 @@ server.addTool({
                 scraped_at: new Date().toISOString(),
                 content_type: 'markdown'
             }
-        });
+        };
     })
 });
 server.addTool({
