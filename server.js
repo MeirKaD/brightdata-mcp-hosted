@@ -243,7 +243,110 @@ server.addTool({
         return response.data;
     }),
 });
+server.addTool({
+    name: 'search',
+    description: 'Search for relevant documents and return a list of search results for deep research',
+    parameters: z.object({
+        query: z.string().describe('Search query string')
+    }),
+    execute: tool_fn('search', async({query}, ctx) => {
+        console.error(`[search] Executing search for: ${query}`);
+        
+        let response = await axios({
+            url: 'https://api.brightdata.com/request',
+            method: 'POST',
+            data: {
+                url: `${search_url('google', query, 0)}&brd_json=1`,
+                zone: ctx.unlockerZone,
+                format: 'raw',
+            },
+            headers: api_headers(ctx.apiToken),
+            responseType: 'text',
+        });
 
+        console.error(`[search] Raw response length: ${response.data.length}`);
+        
+        let searchData;
+        try {
+            searchData = JSON.parse(response.data);
+            console.error(`[search] Parsed JSON successfully`);
+        } catch (e) {
+            console.error(`[search] JSON parse error: ${e.message}`);
+            console.error(`[search] Raw response: ${response.data.substring(0, 500)}...`);
+            throw new Error(`Failed to parse search results JSON: ${e.message}`);
+        }
+
+        const results = [];
+        
+        if (searchData.organic && Array.isArray(searchData.organic)) {
+            console.error(`[search] Found ${searchData.organic.length} organic results`);
+            
+            searchData.organic.forEach((result, index) => {
+                if (result.link && result.title) {
+                    results.push({
+                        id: `url:${encodeURIComponent(result.link)}`,
+                        title: result.title || 'Untitled',
+                        text: result.description || '',
+                        url: result.link || ''
+                    });
+                }
+            });
+        } else {
+            console.error(`[search] No organic results found or not an array`);
+            console.error(`[search] searchData keys: ${Object.keys(searchData)}`);
+        }
+
+        console.error(`[search] Returning ${results.length} results`);
+        
+        return JSON.stringify(results);
+    })
+});
+server.addTool({
+    name: 'fetch',
+    description: 'Retrieve the full content of a document by its URL for deep research',
+    parameters: z.object({
+        id: z.string().url().describe('URL of the document to fetch and return full content')
+    }),
+    execute: tool_fn('fetch', async({id}, ctx) => {
+        const url = id; // id parameter is actually the URL
+        
+        // Scrape the full content
+        let response = await axios({
+            url: 'https://api.brightdata.com/request',
+            method: 'POST',
+            data: {
+                url,
+                zone: ctx.unlockerZone,
+                format: 'raw',
+                data_format: 'markdown',
+            },
+            headers: api_headers(ctx.apiToken),
+            responseType: 'text',
+        });
+
+        // Extract title from markdown content
+        function extractTitleFromMarkdown(content) {
+            const lines = content.split('\n');
+            for (let line of lines) {
+                if (line.startsWith('# ')) {
+                    return line.substring(2).trim();
+                }
+            }
+            return 'Untitled Document';
+        }
+
+        return JSON.stringify({
+            id: url,
+            title: extractTitleFromMarkdown(response.data),
+            text: response.data,
+            url: url,
+            metadata: {
+                scraped_at: new Date().toISOString(),
+                content_type: 'markdown'
+            }
+        });
+    })
+});
 server.addTool({
     name: 'session_stats',
     description: 'Tell the user about the tool usage during this session',
