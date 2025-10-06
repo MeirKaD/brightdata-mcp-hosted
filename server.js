@@ -856,9 +856,10 @@ server.start({
         endpoint: '/mcp',
         corsOptions: {
             origin: '*',
-            credentials: true
-        }
-    }
+            credentials: true,
+        },
+        stateless: true,  
+    },
 });
 console.error(`Server running on http://localhost:${PORT}/mcp`);
 function tool_fn(name, fn){
